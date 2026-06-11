@@ -1,0 +1,301 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>SportsMind</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+    body { font-family: 'Inter', sans-serif; }
+    .gradient-text {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      background-clip: text;
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+    .report-content h1, .report-content h2 { font-weight: 700; margin: 1rem 0 0.5rem; }
+    .report-content p { margin-bottom: 0.75rem; line-height: 1.7; }
+    .report-content strong { font-weight: 600; }
+    #cursor { display: inline-block; width: 2px; height: 1em;
+              background: #667eea; animation: blink 1s infinite; vertical-align: text-bottom; }
+    @keyframes blink { 0%,100% { opacity: 1; } 50% { opacity: 0; } }
+    .game-card:hover { border-color: #7c3aed; background: #1e1b2e; }
+    .game-card { transition: all 0.15s ease; cursor: pointer; }
+  </style>
+</head>
+<body class="bg-gray-950 text-gray-100 min-h-screen">
+
+  <header class="border-b border-gray-800 px-6 py-4">
+    <div class="max-w-4xl mx-auto flex items-center gap-3">
+      <span class="text-2xl">🏀</span>
+      <h1 class="text-xl font-bold gradient-text">SportsMind</h1>
+      <span class="text-gray-500 text-sm ml-2">AI Game Analysis</span>
+    </div>
+  </header>
+
+  <main class="max-w-4xl mx-auto px-6 py-12">
+
+    <div class="text-center mb-12">
+      <h2 class="text-4xl font-bold mb-4">
+        <span class="gradient-text">Broadcast-quality</span> game breakdowns
+      </h2>
+      <p class="text-gray-400 text-lg">Powered by multi-agent AI · Real stats · Live context</p>
+    </div>
+
+    <!-- Step 1: Date picker -->
+    <div id="stepDate" class="bg-gray-900 border border-gray-800 rounded-2xl p-6 mb-6">
+      <label class="block text-sm text-gray-400 mb-3 font-medium">Step 1 — Pick a date</label>
+      <div class="flex gap-3">
+        <input
+          id="dateInput"
+          type="date"
+          class="flex-1 bg-gray-800 border border-gray-700 rounded-xl px-4 py-3
+                 text-white focus:outline-none focus:border-purple-500 focus:ring-1
+                 focus:ring-purple-500 transition"
+        />
+        <button
+          id="fetchGamesBtn"
+          onclick="fetchGames()"
+          class="bg-purple-600 hover:bg-purple-500 text-white font-semibold
+                 px-6 py-3 rounded-xl transition flex items-center gap-2"
+        >
+          <span id="fetchBtnText">Find Games</span>
+          <span id="fetchSpinner" class="hidden">
+            <svg class="animate-spin h-4 w-4" viewBox="0 0 24 24" fill="none">
+              <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/>
+              <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z"/>
+            </svg>
+          </span>
+        </button>
+      </div>
+      <div id="dateError" class="hidden mt-3 text-red-400 text-sm"></div>
+    </div>
+
+    <!-- Step 2: Game picker -->
+    <div id="stepGames" class="hidden bg-gray-900 border border-gray-800 rounded-2xl p-6 mb-6">
+      <div class="flex items-center justify-between mb-4">
+        <label class="block text-sm text-gray-400 font-medium">Step 2 — Pick a game</label>
+        <button onclick="resetDate()" class="text-xs text-gray-500 hover:text-gray-300 transition">← Change date</button>
+      </div>
+      <div id="gamesList" class="grid gap-3"></div>
+    </div>
+
+    <!-- Status -->
+    <div id="status" class="hidden mb-6">
+      <div class="flex items-center gap-3 text-sm text-gray-400">
+        <svg class="animate-spin h-4 w-4 text-purple-400" viewBox="0 0 24 24" fill="none">
+          <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/>
+          <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z"/>
+        </svg>
+        <span id="statusText">Fetching stats & context...</span>
+      </div>
+      <div class="mt-2 flex gap-2">
+        <div id="pill-stats" class="px-3 py-1 rounded-full text-xs bg-gray-800 text-gray-500">Stats</div>
+        <div id="pill-rag"   class="px-3 py-1 rounded-full text-xs bg-gray-800 text-gray-500">RAG Context</div>
+        <div id="pill-ai"    class="px-3 py-1 rounded-full text-xs bg-gray-800 text-gray-500">AI Writing</div>
+      </div>
+    </div>
+
+    <!-- Error -->
+    <div id="error" class="hidden bg-red-900/30 border border-red-800 rounded-xl p-4 mb-6 text-red-300 text-sm"></div>
+
+    <!-- Game metadata -->
+    <div id="gameMeta" class="hidden bg-gray-900 border border-gray-800 rounded-2xl p-5 mb-6">
+      <div class="flex items-center justify-between">
+        <div>
+          <div id="metaMatchup" class="text-lg font-bold"></div>
+          <div id="metaDate" class="text-sm text-gray-400"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Report -->
+    <div id="reportCard" class="hidden bg-gray-900 border border-gray-800 rounded-2xl p-8">
+      <div id="reportContent" class="report-content text-gray-200 leading-relaxed"></div>
+    </div>
+    <!-- Eval badge -->
+    <div id="evalBadge" class="hidden mt-4 bg-gray-900 border border-gray-800 rounded-xl p-4">
+      <div class="flex items-center gap-3 flex-wrap">
+        <span class="text-sm font-medium text-gray-300">Quality Check</span>
+        <span id="badgeScore" class="px-3 py-1 rounded-full text-xs font-semibold"></span>
+        <span id="badgeSections" class="px-2 py-1 rounded-full text-xs bg-gray-800"></span>
+        <span id="badgeStats" class="px-2 py-1 rounded-full text-xs bg-gray-800"></span>
+        <span id="badgeScore2" class="px-2 py-1 rounded-full text-xs bg-gray-800"></span>
+      </div>
+    </div>
+
+  </main>
+
+  <script>
+    // set date input default to today
+    const today = new Date().toISOString().split('T')[0];
+    document.getElementById('dateInput').value = today;
+    document.getElementById('dateInput').max = today;
+
+    function setPill(id, active) {
+      const el = document.getElementById(id);
+      el.className = active
+        ? 'px-3 py-1 rounded-full text-xs bg-purple-900 text-purple-300'
+        : 'px-3 py-1 rounded-full text-xs bg-gray-800 text-gray-500';
+    }
+
+    function resetDate() {
+      document.getElementById('stepGames').classList.add('hidden');
+      document.getElementById('gamesList').innerHTML = '';
+      document.getElementById('reportCard').classList.add('hidden');
+      document.getElementById('gameMeta').classList.add('hidden');
+      document.getElementById('error').classList.add('hidden');
+      document.getElementById('reportContent').innerHTML = '';
+    }
+
+    async function fetchGames() {
+      const date = document.getElementById('dateInput').value;
+      if (!date) return;
+
+      document.getElementById('dateError').classList.add('hidden');
+      document.getElementById('fetchBtnText').textContent = 'Loading...';
+      document.getElementById('fetchSpinner').classList.remove('hidden');
+      document.getElementById('fetchGamesBtn').disabled = true;
+      document.getElementById('stepGames').classList.add('hidden');
+      document.getElementById('gamesList').innerHTML = '';
+
+      try {
+        const resp = await fetch('/games/by-date', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ date })
+        });
+        const data = await resp.json();
+
+        if (!data.games || data.games.length === 0) {
+          document.getElementById('dateError').textContent = 'No NBA games found on this date.';
+          document.getElementById('dateError').classList.remove('hidden');
+          return;
+        }
+
+        const list = document.getElementById('gamesList');
+        data.games.forEach(game => {
+          const card = document.createElement('div');
+          card.className = 'game-card bg-gray-800 border border-gray-700 rounded-xl px-5 py-4 flex items-center justify-between';
+          card.innerHTML = `
+            <div>
+              <div class="font-semibold text-white">${game.away_team} <span class="text-gray-500 font-normal">@</span> ${game.home_team}</div>
+              <div class="text-xs text-gray-500 mt-1">${game.game_date}</div>
+            </div>
+            <div class="text-purple-400 text-sm font-medium">Analyze →</div>
+          `;
+          card.onclick = () => analyze(game);
+          list.appendChild(card);
+        });
+
+        document.getElementById('stepGames').classList.remove('hidden');
+
+      } catch (err) {
+        document.getElementById('dateError').textContent = 'Failed to fetch games: ' + err.message;
+        document.getElementById('dateError').classList.remove('hidden');
+      } finally {
+        document.getElementById('fetchBtnText').textContent = 'Find Games';
+        document.getElementById('fetchSpinner').classList.add('hidden');
+        document.getElementById('fetchGamesBtn').disabled = false;
+      }
+    }
+
+    async function analyze(game) {
+      // reset output
+      document.getElementById('error').classList.add('hidden');
+      document.getElementById('gameMeta').classList.add('hidden');
+      document.getElementById('reportCard').classList.add('hidden');
+      document.getElementById('reportContent').innerHTML = '';
+      document.getElementById('status').classList.remove('hidden');
+      setPill('pill-stats', false);
+      setPill('pill-rag', false);
+      setPill('pill-ai', false);
+
+      document.getElementById('statusText').textContent = 'Fetching stats & context...';
+      setPill('pill-stats', true);
+      setTimeout(() => { setPill('pill-rag', true); document.getElementById('statusText').textContent = 'Retrieving historical context...'; }, 3000);
+      setTimeout(() => { setPill('pill-ai', true);  document.getElementById('statusText').textContent = 'Writing report...'; }, 6000);
+
+      const query = `${game.away_team} vs ${game.home_team} ${game.game_date}`;
+
+      try {
+        const resp = await fetch('/analyze/stream', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ query })
+        });
+
+        if (!resp.ok) {
+          const err = await resp.json();
+          throw new Error(err.detail || 'Analysis failed');
+        }
+
+        document.getElementById('reportCard').classList.remove('hidden');
+        const content = document.getElementById('reportContent');
+        content.innerHTML = '<span id="cursor"></span>';
+
+        let fullText = '';
+        const reader = resp.body.getReader();
+        const decoder = new TextDecoder();
+
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+          const lines = decoder.decode(value).split('\n');
+          for (const line of lines) {
+            if (!line.startsWith('data: ')) continue;
+            const data = JSON.parse(line.slice(6));
+
+            if (data.type === 'game') {
+              const g = data.data;
+              document.getElementById('metaMatchup').textContent = `${g.away_team} @ ${g.home_team}`;
+              document.getElementById('metaDate').textContent = g.game_date;
+              document.getElementById('gameMeta').classList.remove('hidden');
+            }
+            if (data.type === 'token') {
+              fullText += data.data;
+              content.innerHTML = marked.parse(fullText) + '<span id="cursor"></span>';
+              content.scrollIntoView({ behavior: 'smooth', block: 'end' });
+            }
+            if (data.type === 'done') {
+              content.innerHTML = marked.parse(fullText);
+            }
+            if (data.type === 'eval' && data.data) {
+              const e = data.data;
+              const passed = parseInt(e.eval_score);
+              const total  = 4;
+              const badge  = document.getElementById('badgeScore');
+              const realPassed = [e.sections_ok, e.stats_ok, e.score_mentioned].filter(Boolean).length;
+              badge.textContent = `${realPassed}/3 checks`;
+              badge.className = `px-3 py-1 rounded-full text-xs font-semibold ${realPassed >= 3 ? 'bg-green-900 text-green-300' : 'bg-yellow-900 text-yellow-300'}`;
+              badge.className = `px-3 py-1 rounded-full text-xs font-semibold ${passed >= 3 ? 'bg-green-900 text-green-300' : 'bg-red-900 text-red-300'}`;
+
+              document.getElementById('badgeSections').textContent =
+                (e.sections_ok ? '✓' : '✗') + ' Sections';
+              document.getElementById('badgeStats').textContent =
+                (e.stats_ok ? '✓' : '✗') + ' Stats';
+              document.getElementById('badgeScore2').textContent =
+                (e.score_mentioned ? '✓' : '✗') + ' Score';
+
+              document.getElementById('evalBadge').classList.remove('hidden');
+            }
+          }
+        }
+
+      } catch (err) {
+        document.getElementById('error').textContent = err.message;
+        document.getElementById('error').classList.remove('hidden');
+      } finally {
+        document.getElementById('status').classList.add('hidden');
+      }
+    }
+
+    // allow hitting enter on date input
+    document.getElementById('dateInput').addEventListener('keydown', e => {
+      if (e.key === 'Enter') fetchGames();
+    });
+  </script>
+</body>
+</html>
